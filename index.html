@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stream Link Extractor</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --bg-card: rgba(26, 26, 36, 0.8);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --purple: #8b5cf6;
+            --gradient-1: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --gradient-2: linear-gradient(135deg, #10b981, #06b6d4);
+            --gradient-3: linear-gradient(135deg, #f59e0b, #ef4444);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s ease;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e5e5ea;
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-hover: rgba(0, 0, 0, 0.15);
+            --text-primary: #1a1a1a;
+            --text-secondary: #505060;
+            --text-muted: #909090;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 70%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 16px 100px;
+        }
+
+        @media (min-width: 768px) {
+            .container { padding: 32px 24px 100px; }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+            position: relative;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            background: var(--gradient-1);
+            border-radius: var(--radius-lg);
+            margin-bottom: 14px;
+            box-shadow: 0 8px 32px var(--accent-glow);
+        }
+
+        .logo svg {
+            width: 26px;
+            height: 26px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        @media (min-width: 768px) {
+            .header h1 { font-size: 2.2rem; }
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-md);
+            width: 42px;
+            height: 42px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        @media (min-width: 768px) {
+            .card { padding: 24px; }
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title-icon {
+            width: 34px;
+            height: 34px;
+            background: var(--gradient-1);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .card-title-icon svg {
+            width: 16px;
+            height: 16px;
+            color: white;
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all var(--transition-normal);
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .input-field::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            min-height: 42px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 16px var(--accent-glow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--gradient-2);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #8b5cf6, #a855f7);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            min-height: 36px;
+        }
+
+        .btn-xs {
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            min-height: 30px;
+        }
+
+        .btn-icon {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .btn-scroll::-webkit-scrollbar { display: none; }
+        .btn-scroll .btn { flex-shrink: 0; }
+
+        .site-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .site-tag {
+            padding: 4px 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .alert {
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            margin-bottom: 14px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .alert.show { display: flex; }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .alert svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        /* Compact Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.show { display: flex; }
+
+        .loading-box {
+            text-align: center;
+            padding: 24px 32px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            max-width: 280px;
+        }
+
+        .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .loading-status {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Pixeldrain Options */
+        .pd-options {
+            display: none;
+            margin-top: 14px;
+            padding: 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .pd-options.show { display: block; }
+
+        .pd-options-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        .pd-options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .pd-option {
+            padding: 12px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .pd-option:active {
+            transform: scale(0.97);
+        }
+
+        .pd-option.active {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .pd-option-icon {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+
+        .pd-option-text {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .pd-option-count {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            margin-bottom: 14px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .stat-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .stat-num {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Toggle */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 14px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .toggle input { display: none; }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: var(--bg-secondary);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: all var(--transition-normal);
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background: var(--accent);
+        }
+
+        .toggle input:checked + .toggle-slider::before {
+            transform: translateX(20px);
+        }
+
+        .toggle-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Advanced Panel */
+        .adv-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 14px;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        .adv-panel.show { display: block; }
+
+        .adv-section {
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .adv-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .adv-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .adv-title svg {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+        }
+
+        .tmdb-search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .tmdb-search .input-field { flex: 1; }
+
+        .poster-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        @media (min-width: 480px) {
+            .poster-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        @media (min-width: 768px) {
+            .poster-grid {
+                grid-template-columns: repeat(6, 1fr);
+                max-height: 280px;
+            }
+        }
+
+        .poster-item {
+            position: relative;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            aspect-ratio: 2/3;
+        }
+
+        .poster-item.selected { border-color: var(--success); }
+
+        .poster-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .poster-check {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 20px;
+            height: 20px;
+            background: var(--success);
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .poster-item.selected .poster-check { display: flex; }
+
+        .poster-check svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .see-all-btn {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .poster-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .bulk-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bulk-inputs {
+            display: flex;
+            gap: 6px;
+        }
+
+        .bulk-inputs .input-field { flex: 1; }
+        .bulk-inputs .input-field.sm { width: 55px; flex: none; text-align: center; }
+
+        .range-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .range-input {
+            width: 50px;
+            padding: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .bulk-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .bulk-btns .btn { flex: 1; }
+
+        /* Search & Filter */
+        .search-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .search-row .input-field { flex: 1; }
+
+        .filter-chips {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .filter-chips::-webkit-scrollbar { display: none; }
+
+        .chip {
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .chip.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .view-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            padding: 3px;
+            margin-bottom: 12px;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .view-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .view-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Playlist Items */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        .p-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: grab;
+        }
+
+        .p-item.selected {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .p-item-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .p-item-check {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--accent);
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .p-item-drag {
+            color: var(--text-muted);
+            flex-shrink: 0;
+            touch-action: none;
+        }
+
+        .p-item-drag svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .p-item-thumb {
+            width: 44px;
+            height: 62px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-secondary);
+            object-fit: cover;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .p-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .p-item-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .p-item-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .p-item-meta span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .p-item-meta svg {
+            width: 10px;
+            height: 10px;
+        }
+
+        .p-item-btns {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .p-item-btns .btn-icon {
+            width: 34px;
+            height: 34px;
+        }
+
+        .intent-btn {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+        }
+
+        /* Grid View */
+        .p-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        @media (min-width: 480px) {
+            .p-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        @media (min-width: 768px) {
+            .p-grid { grid-template-columns: repeat(6, 1fr); }
+        }
+
+        .g-item {
+            position: relative;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            aspect-ratio: 2/3;
+            background: var(--bg-tertiary);
+        }
+
+        .g-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .g-item-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 6px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            font-size: 0.65rem;
+            color: white;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .g-item-actions {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            display: flex;
+            gap: 3px;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .g-item:hover .g-item-actions,
+        .g-item:active .g-item-actions {
+            opacity: 1;
+        }
+
+        .g-item-btn {
+            width: 26px;
+            height: 26px;
+            background: rgba(0,0,0,0.7);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .g-item-btn svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* History */
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+        }
+
+        .history-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .history-item-url {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .history-item-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Saved */
+        .saved-section {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .saved-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .saved-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .saved-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .saved-del {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--error);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .saved-del svg {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal.show { display: flex; }
+
+        @media (min-width: 768px) {
+            .modal {
+                align-items: center;
+                padding: 20px;
+            }
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            padding: 20px 16px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (min-width: 768px) {
+            .modal-box {
+                border-radius: var(--radius-xl);
+                max-width: 480px;
+            }
+        }
+
+        .modal-box.lg {
+            max-width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .modal-box.lg { max-width: 700px; }
+        }
+
+        .modal-handle {
+            width: 36px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin: 0 auto 14px;
+        }
+
+        @media (min-width: 768px) {
+            .modal-handle { display: none; }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* TMDB Details */
+        .tmdb-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .tmdb-poster {
+            width: 80px;
+            border-radius: var(--radius-md);
+            flex-shrink: 0;
+        }
+
+        .tmdb-info { flex: 1; }
+
+        .tmdb-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .tmdb-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .tmdb-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .tmdb-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .tmdb-tab {
+            padding: 6px 14px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+        }
+
+        .tmdb-tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tmdb-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        @media (min-width: 768px) {
+            .tmdb-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .tmdb-grid.bd {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @media (min-width: 768px) {
+            .tmdb-grid.bd { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .tmdb-img {
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .tmdb-img.selected { border-color: var(--success); }
+
+        .tmdb-img img {
+            width: 100%;
+            display: block;
+        }
+
+        /* Download Progress */
+        .dl-progress {
+            margin-top: 12px;
+        }
+
+        .dl-bar {
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .dl-fill {
+            height: 100%;
+            background: var(--gradient-1);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .dl-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        /* FAB */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 52px;
+            height: 52px;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .fab svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .fab-menu {
+            position: fixed;
+            bottom: 82px;
+            right: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .fab-menu.show { display: flex; }
+
+        .fab-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+        }
+
+        .fab-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gradient-1);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .fab-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .fab-text {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 18px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 10001;
+            box-shadow: var(--shadow-lg);
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-box">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processing</div>
+            <div class="loading-status" id="loadingStatus">Please wait...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </button>
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                </svg>
+            </div>
+            <h1>Stream Link Extractor</h1>
+            <p>Extract & organize streaming links instantly</p>
+        </header>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-title-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                    </div>
+                    <span>Extract Link</span>
+                </div>
+            </div>
+
+            <div class="alert alert-error" id="errorAlert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                <span id="errorText"></span>
+            </div>
+            <div class="alert alert-success" id="successAlert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span id="successText"></span>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Paste Link</label>
+                <input type="text" class="input-field" id="urlInput" placeholder="https://pixeldrain.com/u/... or gdflix.dev/pack/...">
+                <div class="site-tags">
+                    <span class="site-tag">gdflix.dev</span>
+                    <span class="site-tag">gdrex.sbs</span>
+                    <span class="site-tag">gkyfilehost.site</span>
+                    <span class="site-tag">pixeldrain.com</span>
+                    <span class="site-tag">pixeldrain/l/ (folder)</span>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="fetchLink()" id="fetchBtn" style="flex:1;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <span>Fetch</span>
+                </button>
+                <button class="btn btn-secondary" onclick="clearForm()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+            </div>
+
+            <!-- Pixeldrain Options -->
+            <div class="pd-options" id="pdOptions">
+                <div class="pd-options-title">Select what to fetch:</div>
+                <div class="pd-options-grid">
+                    <div class="pd-option active" data-type="all" onclick="selectPdOption('all')">
+                        <div class="pd-option-icon">📁</div>
+                        <div class="pd-option-text">All Files</div>
+                        <div class="pd-option-count" id="pdCountAll">0</div>
+                    </div>
+                    <div class="pd-option" data-type="video" onclick="selectPdOption('video')">
+                        <div class="pd-option-icon">🎬</div>
+                        <div class="pd-option-text">Videos</div>
+                        <div class="pd-option-count" id="pdCountVideo">0</div>
+                    </div>
+                    <div class="pd-option" data-type="image" onclick="selectPdOption('image')">
+                        <div class="pd-option-icon">🖼️</div>
+                        <div class="pd-option-text">Photos</div>
+                        <div class="pd-option-count" id="pdCountImage">0</div>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:12px;">
+                    <button class="btn btn-success btn-sm" onclick="fetchPdWithFilter()" style="flex:1;">Fetch Selected</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('playlist')">Playlist</button>
+                <button class="tab" onclick="switchTab('history')">History</button>
+            </div>
+
+            <!-- Playlist Tab -->
+            <div class="tab-content active" id="playlistTab">
+                <div class="toggle-row">
+                    <label class="toggle">
+                        <input type="checkbox" id="advToggle" onchange="toggleAdv()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-text">Advanced Edit</span>
+                </div>
+
+                <div class="adv-panel" id="advPanel">
+                    <!-- TMDB Search -->
+                    <div class="adv-section">
+                        <div class="adv-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            TMDB Poster Search
+                        </div>
+                        <div class="tmdb-search">
+                            <input type="text" class="input-field" id="tmdbInput" placeholder="Search movie/show...">
+                            <button class="btn btn-primary btn-sm" onclick="searchTMDB()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            </button>
+                        </div>
+                        <div class="poster-grid" id="posterGrid"></div>
+                        <div class="see-all-btn" id="seeAllBtn" style="display:none;">
+                            <button class="btn btn-sm btn-secondary" onclick="openTmdbAll()">See All Results</button>
+                        </div>
+                        <div class="poster-actions" id="posterActions" style="display:none;">
+                            <span class="badge"><span id="selPosterCount">0</span> selected</span>
+                            <button class="btn btn-xs btn-success" onclick="applyPosters()">Apply</button>
+                            <button class="btn btn-xs btn-secondary" onclick="clearPosters()">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Group Name -->
+                    <div class="adv-section">
+                        <div class="adv-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+                            Set Group Name
+                        </div>
+                        <div class="bulk-row">
+                            <div class="bulk-inputs">
+                                <input type="text" class="input-field" id="bulkGroup" placeholder="Group name...">
+                            </div>
+                            <div class="range-row">
+                                <span>Range:</span>
+                                <input type="number" class="range-input" id="grpStart" placeholder="1" min="1">
+                                <span>to</span>
+                                <input type="number" class="range-input" id="grpEnd" placeholder="10" min="1">
+                            </div>
+                            <div class="bulk-btns">
+                                <button class="btn btn-xs btn-success" onclick="applyGroup('range')">Range</button>
+                                <button class="btn btn-xs btn-purple" onclick="applyGroup('all')">All</button>
+                                <button class="btn btn-xs btn-primary" onclick="applyGroup('sel')">Selected</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Name Prefix -->
+                    <div class="adv-section">
+                        <div class="adv-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Name Prefix (S1EP01...)
+                        </div>
+                        <div class="bulk-row">
+                            <div class="bulk-inputs">
+                                <input type="text" class="input-field" id="bulkPrefix" placeholder="S1EP">
+                                <input type="number" class="input-field sm" id="prefixNum" value="1" min="1">
+                            </div>
+                            <div class="range-row">
+                                <span>Range:</span>
+                                <input type="number" class="range-input" id="pfxStart" placeholder="1" min="1">
+                                <span>to</span>
+                                <input type="number" class="range-input" id="pfxEnd" placeholder="10" min="1">
+                            </div>
+                            <div class="bulk-btns">
+                                <button class="btn btn-xs btn-success" onclick="applyPrefix('range')">Range</button>
+                                <button class="btn btn-xs btn-purple" onclick="applyPrefix('all')">All</button>
+                                <button class="btn btn-xs btn-primary" onclick="applyPrefix('sel')">Selected</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logo URL -->
+                    <div class="adv-section">
+                        <div class="adv-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            Set Logo URL
+                        </div>
+                        <div class="bulk-row">
+                            <div class="bulk-inputs">
+                                <input type="text" class="input-field" id="bulkLogo" placeholder="https://...">
+                            </div>
+                            <div class="range-row">
+                                <span>Range:</span>
+                                <input type="number" class="range-input" id="logoStart" placeholder="1" min="1">
+                                <span>to</span>
+                                <input type="number" class="range-input" id="logoEnd" placeholder="10" min="1">
+                            </div>
+                            <div class="bulk-btns">
+                                <button class="btn btn-xs btn-success" onclick="applyLogo('range')">Range</button>
+                                <button class="btn btn-xs btn-purple" onclick="applyLogo('all')">All</button>
+                                <button class="btn btn-xs btn-primary" onclick="applyLogo('sel')">Selected</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selection -->
+                    <div class="btn-scroll">
+                        <span class="badge"><span id="selCount">0</span> selected</span>
+                        <button class="btn btn-xs btn-secondary" onclick="selectAll()">Select All</button>
+                        <button class="btn btn-xs btn-secondary" onclick="deselectAll()">Deselect</button>
+                        <button class="btn btn-xs btn-secondary" onclick="invertSel()">Invert</button>
+                        <button class="btn btn-xs btn-danger" onclick="deleteSel()">Delete</button>
+                        <button class="btn btn-xs btn-warning" onclick="downloadSel()">Download</button>
+                    </div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="stat-num" id="statTotal">0</div>
+                        <div class="stat-label">Items</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-num" id="statGroups">0</div>
+                        <div class="stat-label">Groups</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-num" id="statSize">0 MB</div>
+                        <div class="stat-label">Size</div>
+                    </div>
+                </div>
+
+                <div class="search-row">
+                    <input type="text" class="input-field" id="searchInput" placeholder="Search..." oninput="filterList()">
+                    <button class="btn btn-secondary btn-icon" onclick="clearSearch()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="filter-chips" id="filterChips"></div>
+
+                <div class="view-toggle">
+                    <button class="view-btn active" id="listBtn" onclick="setView('list')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                    </button>
+                    <button class="view-btn" id="gridBtn" onclick="setView('grid')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </button>
+                </div>
+
+                <div class="btn-scroll" style="margin-bottom:12px;">
+                    <button class="btn btn-sm btn-primary" onclick="copyM3U()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        Copy
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="openDlModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        Download
+                    </button>
+                    <button class="btn btn-sm btn-purple" onclick="openSaveModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
+                        Save
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="clearList()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+                        Clear
+                    </button>
+                </div>
+
+                <div id="listContainer"></div>
+
+                <div class="saved-section" id="savedSection" style="display:none;">
+                    <div class="saved-title">Saved Playlists</div>
+                    <div class="saved-list" id="savedList"></div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="historyTab">
+                <div class="btn-group" style="margin-bottom:12px;">
+                    <button class="btn btn-sm btn-danger" onclick="clearHistory()">Clear History</button>
+                </div>
+                <div id="historyContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabBtn" onclick="toggleFab()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <div class="fab-menu" id="fabMenu">
+        <div class="fab-item" onclick="importM3U()">
+            <div class="fab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+            <span class="fab-text">Import M3U</span>
+        </div>
+        <div class="fab-item" onclick="document.getElementById('urlInput').focus();toggleFab();">
+            <div class="fab-icon" style="background:var(--gradient-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
+            <span class="fab-text">Add Link</span>
+        </div>
+        <div class="fab-item" onclick="dupSel()">
+            <div class="fab-icon" style="background:var(--gradient-3);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div>
+            <span class="fab-text">Duplicate</span>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="editModal">
+        <div class="modal-box">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Item</h2>
+                <button class="modal-close" onclick="closeModal('editModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="input-group"><label class="input-label">Name</label><input type="text" class="input-field" id="editName"></div>
+            <div class="input-group"><label class="input-label">Group</label><input type="text" class="input-field" id="editGroup"></div>
+            <div class="input-group"><label class="input-label">Logo URL</label><input type="text" class="input-field" id="editLogo"></div>
+            <div class="input-group"><label class="input-label">Stream URL</label><input type="text" class="input-field" id="editUrl"></div>
+            <div class="btn-group"><button class="btn btn-success" onclick="saveEdit()" style="flex:1;">Save</button><button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="dlModal">
+        <div class="modal-box">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 class="modal-title">Download M3U</h2>
+                <button class="modal-close" onclick="closeModal('dlModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="input-group"><label class="input-label">Filename (optional)</label><input type="text" class="input-field" id="dlName" placeholder="playlist"></div>
+            <div class="btn-group"><button class="btn btn-success" onclick="downloadM3U()" style="flex:1;">Download</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="saveModal">
+        <div class="modal-box">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 class="modal-title">Save Playlist</h2>
+                <button class="modal-close" onclick="closeModal('saveModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="input-group"><label class="input-label">Playlist Name</label><input type="text" class="input-field" id="saveName" placeholder="My Playlist"></div>
+            <div class="btn-group"><button class="btn btn-purple" onclick="saveList()" style="flex:1;">Save</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="tmdbModal">
+        <div class="modal-box lg">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 class="modal-title">All Results</h2>
+                <button class="modal-close" onclick="closeModal('tmdbModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="poster-grid" id="tmdbAllGrid" style="max-height:60vh;"></div>
+            <div class="poster-actions" style="margin-top:12px;"><span class="badge"><span id="tmdbAllCount">0</span> selected</span><button class="btn btn-sm btn-success" onclick="applyPosters();closeModal('tmdbModal')">Apply</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="detailsModal">
+        <div class="modal-box lg">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <h2 class="modal-title">Select Image</h2>
+                <button class="modal-close" onclick="closeModal('detailsModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            </div>
+            <div class="tmdb-header" id="detailsHeader"></div>
+            <div class="tmdb-tabs">
+                <button class="tmdb-tab active" onclick="showImgTab('posters')">Posters</button>
+                <button class="tmdb-tab" onclick="showImgTab('backdrops')">Backdrops</button>
+            </div>
+            <div class="tmdb-grid" id="postersGrid"></div>
+            <div class="tmdb-grid bd" id="backdropsGrid" style="display:none;"></div>
+            <div class="poster-actions" style="margin-top:12px;"><span class="badge"><span id="detailsCount">0</span> selected</span><button class="btn btn-sm btn-success" onclick="applyPosters();closeModal('detailsModal')">Apply</button></div>
+        </div>
+    </div>
+
+    <div class="modal" id="downloadProgressModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2 class="modal-title">Downloading Files</h2>
+            </div>
+            <div class="dl-progress">
+                <div class="dl-bar"><div class="dl-fill" id="dlFill"></div></div>
+                <div class="dl-text" id="dlText">Preparing...</div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="m3uFile" accept=".m3u,.m3u8" style="display:none" onchange="handleM3U(event)">
+
+    <script>
+        const TMDB_KEY = '88649105198c3eecb4d2d6091d7ce972';
+        const TMDB_IMG = 'https://image.tmdb.org/t/p';
+
+        let playlist = [], history = [], saved = {};
+        let editIdx = -1, view = 'list', filter = 'all', search = '';
+        let selPosters = [], tmdbResults = [], pdFiles = [], pdFilter = 'all';
+        let advMode = false;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            load();
+            loadTheme();
+        });
+
+        function toggleTheme() {
+            const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+            localStorage.setItem('theme', t);
+            document.getElementById('themeIcon').innerHTML = t === 'light' ? '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>' : '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
+        }
+
+        function loadTheme() {
+            const t = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+            if (t === 'light') document.getElementById('themeIcon').innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (tab === 'playlist' ? i === 0 : i === 1)));
+            document.getElementById('playlistTab').classList.toggle('active', tab === 'playlist');
+            document.getElementById('historyTab').classList.toggle('active', tab === 'history');
+            if (tab === 'history') renderHistory();
+        }
+
+        function toggleAdv() {
+            advMode = document.getElementById('advToggle').checked;
+            document.getElementById('advPanel').classList.toggle('show', advMode);
+            render();
+        }
+
+        function toggleFab() {
+            const m = document.getElementById('fabMenu'), f = document.getElementById('fabBtn');
+            m.classList.toggle('show');
+            f.innerHTML = m.classList.contains('show') ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
+        }
+
+        // Fetch
+        async function fetchLink() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) return alert('Enter URL', 'error');
+            
+            // Direct pixeldrain
+            const pdMatch = url.match(/pixeldrain\.com\/[ui]\/([a-zA-Z0-9]+)/i);
+            if (pdMatch) return handlePdDirect(pdMatch[1], url);
+            
+            // Pixeldrain folder
+            const pdFolder = url.match(/pixeldrain\.com\/l\/([a-zA-Z0-9]+)/i);
+            if (pdFolder) return handlePdFolder(pdFolder[1], url);
+            
+            // Other sites
+            setLoad(true, 'Fetching');
+            addHistory(url);
+            try {
+                const res = await fetch('/api/fetch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, fetchInfo: true }) });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
+                
+                if (data.isPack && data.items?.length) {
+                    setLoadStatus(`Adding ${data.items.length} items...`);
+                    await addWithLogos(data.items, 'Pack');
+                    alert(`${data.items.length} items added`, 'success');
+                } else {
+                    const logo = await getLogo(data);
+                    addItem({ ...data, logo });
+                    alert('Item added', 'success');
+                }
+            } catch (e) {
+                alert(e.message, 'error');
+            } finally {
+                setLoad(false);
+            }
+        }
+
+        async function handlePdDirect(id, url) {
+            setLoad(true, 'Fetching');
+            addHistory(url);
+            try {
+                const info = await fetch(`https://pixeldrain.com/api/file/${id}/info`).then(r => r.json());
+                const logo = await getLogo({ filename: info.name, pixeldrain_id: id });
+                addItem({ filename: info.name, pixeldrain_api: `https://pixeldrain.com/api/file/${id}`, pixeldrain_id: id, filesize: info.size, mime_type: info.mime_type, logo, original: url });
+                alert('Added!', 'success');
+            } catch (e) {
+                alert('Failed', 'error');
+            } finally {
+                setLoad(false);
+            }
+        }
+
+        async function handlePdFolder(id, url) {
+            setLoad(true, 'Fetching folder');
+            addHistory(url);
+            try {
+                const data = await fetch(`https://pixeldrain.com/api/list/${id}`).then(r => r.json());
+                if (!data.files?.length) throw new Error('Empty');
+                
+                pdFiles = data.files.map(f => ({ ...f, original: url }));
+                const videos = pdFiles.filter(f => f.mime_type?.startsWith('video')).length;
+                const images = pdFiles.filter(f => f.mime_type?.startsWith('image')).length;
+                
+                document.getElementById('pdCountAll').textContent = pdFiles.length;
+                document.getElementById('pdCountVideo').textContent = videos;
+                document.getElementById('pdCountImage').textContent = images;
+                document.getElementById('pdOptions').classList.add('show');
+                pdFilter = 'all';
+                document.querySelectorAll('.pd-option').forEach(o => o.classList.toggle('active', o.dataset.type === 'all'));
+            } catch (e) {
+                alert(e.message, 'error');
+            } finally {
+                setLoad(false);
+            }
+        }
+
+        function selectPdOption(type) {
+            pdFilter = type;
+            document.querySelectorAll('.pd-option').forEach(o => o.classList.toggle('active', o.dataset.type === type));
+        }
+
+        async function fetchPdWithFilter() {
+            let files = pdFiles;
+            if (pdFilter === 'video') files = pdFiles.filter(f => f.mime_type?.startsWith('video'));
+            else if (pdFilter === 'image') files = pdFiles.filter(f => f.mime_type?.startsWith('image'));
+            
+            if (!files.length) return alert('No files', 'error');
+            
+            document.getElementById('pdOptions').classList.remove('show');
+            setLoad(true, `Adding ${files.length} files`);
+            
+            const items = files.map(f => ({ filename: f.name, pixeldrain_api: `https://pixeldrain.com/api/file/${f.id}`, pixeldrain_id: f.id, filesize: f.size, mime_type: f.mime_type, original: f.original }));
+            await addWithLogos(items, pdFilter === 'image' ? 'Photos' : pdFilter === 'video' ? 'Videos' : 'Files');
+            
+            setLoad(false);
+            alert(`${files.length} items added`, 'success');
+            pdFiles = [];
+        }
+
+        function addItem(data) {
+            playlist.push({ id: genId(), name: data.filename || 'Untitled', logo: data.logo || '', group: 'Uncategorized', url: data.pixeldrain_api, size: data.filesize, mime: data.mime_type, pdId: data.pixeldrain_id, original: data.original || data.pixeldrain_api });
+            save();
+            render();
+        }
+
+        async function addWithLogos(items, group) {
+            for (let i = 0; i < items.length; i++) {
+                setLoadStatus(`${i + 1}/${items.length}...`);
+                const logo = await getLogo(items[i]);
+                playlist.push({ id: genId(), name: items[i].filename || `File ${i + 1}`, logo, group, url: items[i].pixeldrain_api, size: items[i].filesize, mime: items[i].mime_type, pdId: items[i].pixeldrain_id, original: items[i].original || items[i].pixeldrain_api });
+            }
+            save();
+            render();
+        }
+
+        async function getLogo(item) {
+            const tmdb = await fetchTMDB(item.filename);
+            if (tmdb) return tmdb;
+            return item.pixeldrain_id ? `https://pixeldrain.com/api/file/${item.pixeldrain_id}/thumbnail` : '';
+        }
+
+        async function fetchTMDB(title) {
+            if (!title) return null;
+            const clean = cleanTitle(title);
+            if (!clean || clean.length < 2) return null;
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}`);
+                const data = await res.json();
+                if (data.results?.[0]?.poster_path) return `${TMDB_IMG}/w500${data.results[0].poster_path}`;
+            } catch {}
+            return null;
+        }
+
+        function cleanTitle(t) {
+            return t.replace(/\.(mkv|mp4|avi|mov|webm|flv|m4v)$/i, '').replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').replace(/S\d{1,2}E\d{1,2}|Season\s*\d+|\d{3,4}p/gi, '').replace(/x264|x265|hevc|bluray|webrip|web-dl/gi, '').replace(/[-_.]+/g, ' ').trim().split(' ').filter(p => p.length > 1).slice(0, 3).join(' ');
+        }
+
+        // History
+        function addHistory(url) {
+            history = history.filter(h => h.url !== url);
+            history.unshift({ url, time: Date.now() });
+            if (history.length > 50) history = history.slice(0, 50);
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        function renderHistory() {
+            const c = document.getElementById('historyContainer');
+            if (!history.length) { c.innerHTML = '<div class="empty-state"><p>No history</p></div>'; return; }
+            c.innerHTML = history.map((h, i) => `
+                <div class="history-item">
+                    <div class="history-item-info">
+                        <div class="history-item-url">${esc(h.url)}</div>
+                        <div class="history-item-time">${timeAgo(h.time)}</div>
+                    </div>
+                    <div class="history-item-btns">
+                        <button class="btn btn-xs btn-primary" onclick="reFetch(${i})">Fetch</button>
+                        <button class="btn btn-xs btn-secondary" onclick="copyText('${esc(h.url)}')">Copy</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function reFetch(i) {
+            document.getElementById('urlInput').value = history[i].url;
+            switchTab('playlist');
+            fetchLink();
+        }
+
+        function clearHistory() {
+            if (!confirm('Clear history?')) return;
+            history = [];
+            localStorage.setItem('history', '[]');
+            renderHistory();
+        }
+
+        // TMDB Search
+        async function searchTMDB() {
+            const q = document.getElementById('tmdbInput').value.trim();
+            if (!q) return;
+            const grid = document.getElementById('posterGrid');
+            grid.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-muted);">Searching...</div>';
+            try {
+                const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                tmdbResults = data.results?.filter(r => r.poster_path) || [];
+                renderPosters(grid, tmdbResults.slice(0, 9));
+                document.getElementById('seeAllBtn').style.display = tmdbResults.length > 9 ? 'block' : 'none';
+            } catch {
+                grid.innerHTML = '<div style="color:var(--error);">Failed</div>';
+            }
+        }
+
+        function renderPosters(c, items) {
+            if (!items.length) { c.innerHTML = '<div style="color:var(--text-muted);">No results</div>'; return; }
+            c.innerHTML = items.map(r => `
+                <div class="poster-item ${selPosters.some(p => p.id === r.id) ? 'selected' : ''}" onclick="openDetails(${r.id},'${r.media_type||'movie'}')">
+                    <img src="${TMDB_IMG}/w200${r.poster_path}" loading="lazy">
+                    <div class="poster-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                </div>
+            `).join('');
+        }
+
+        function openTmdbAll() {
+            renderPosters(document.getElementById('tmdbAllGrid'), tmdbResults);
+            openModal('tmdbModal');
+        }
+
+        async function openDetails(id, type) {
+            const header = document.getElementById('detailsHeader');
+            const pg = document.getElementById('postersGrid'), bg = document.getElementById('backdropsGrid');
+            header.innerHTML = '<div style="color:var(--text-muted);">Loading...</div>';
+            pg.innerHTML = ''; bg.innerHTML = '';
+            openModal('detailsModal');
+            try {
+                const [details, images] = await Promise.all([
+                    fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}`).then(r => r.json()),
+                    fetch(`https://api.themoviedb.org/3/${type}/${id}/images?api_key=${TMDB_KEY}`).then(r => r.json())
+                ]);
+                header.innerHTML = `
+                    <img class="tmdb-poster" src="${TMDB_IMG}/w200${details.poster_path}" onerror="this.style.display='none'">
+                    <div class="tmdb-info">
+                        <div class="tmdb-title">${esc(details.title || details.name)}</div>
+                        <div class="tmdb-meta">${details.release_date || details.first_air_date || ''}</div>
+                        <div class="tmdb-desc">${esc(details.overview || '')}</div>
+                    </div>
+                `;
+                renderImgGrid(pg, images.posters || []);
+                renderImgGrid(bg, images.backdrops || [], true);
+                showImgTab('posters');
+            } catch {
+                header.innerHTML = '<div style="color:var(--error);">Failed</div>';
+            }
+        }
+
+        function renderImgGrid(c, imgs, isBd = false) {
+            c.innerHTML = imgs.slice(0, 20).map(img => `
+                <div class="tmdb-img ${selPosters.some(p => p.url === `${TMDB_IMG}/w500${img.file_path}`) ? 'selected' : ''}" onclick="togglePoster('${TMDB_IMG}/w500${img.file_path}')">
+                    <img src="${TMDB_IMG}/${isBd ? 'w300' : 'w200'}${img.file_path}" loading="lazy">
+                </div>
+            `).join('') || '<div style="color:var(--text-muted);padding:16px;">None</div>';
+        }
+
+        function showImgTab(tab) {
+            document.querySelectorAll('.tmdb-tab').forEach((t, i) => t.classList.toggle('active', (tab === 'posters' ? i === 0 : i === 1)));
+            document.getElementById('postersGrid').style.display = tab === 'posters' ? 'grid' : 'none';
+            document.getElementById('backdropsGrid').style.display = tab === 'backdrops' ? 'grid' : 'none';
+        }
+
+        function togglePoster(url) {
+            const i = selPosters.findIndex(p => p.url === url);
+            if (i >= 0) selPosters.splice(i, 1); else selPosters.push({ url });
+            updatePosterUI();
+        }
+
+        function updatePosterUI() {
+            document.querySelectorAll('.poster-item, .tmdb-img').forEach(el => {
+                const img = el.querySelector('img')?.src?.replace('/w200', '/w500').replace('/w300', '/w500');
+                el.classList.toggle('selected', selPosters.some(p => p.url === img));
+            });
+            const n = selPosters.length;
+            document.getElementById('selPosterCount').textContent = n;
+            document.getElementById('tmdbAllCount').textContent = n;
+            document.getElementById('detailsCount').textContent = n;
+            document.getElementById('posterActions').style.display = n ? 'flex' : 'none';
+        }
+
+        function clearPosters() { selPosters = []; updatePosterUI(); }
+
+        function applyPosters() {
+            const sel = getSelIdx();
+            if (!sel.length || !selPosters.length) return alert('Select items & posters', 'error');
+            sel.forEach((i, j) => playlist[i].logo = selPosters[j % selPosters.length].url);
+            save(); render();
+            alert(`Applied to ${sel.length}`, 'success');
+        }
+
+        // Render List
+        function render() {
+            const c = document.getElementById('listContainer');
+            let items = [...playlist];
+            if (filter !== 'all') items = items.filter(i => i.group === filter);
+            if (search) { const q = search.toLowerCase(); items = items.filter(i => i.name.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)); }
+            renderFilters();
+            if (!items.length) { c.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg><p>${playlist.length ? 'No matches' : 'No items'}</p></div>`; updateStats(); return; }
+            if (view === 'grid') {
+                c.innerHTML = `<div class="p-grid">${items.map((it, i) => { const ri = playlist.indexOf(it); const logo = it.logo || `https://pixeldrain.com/api/file/${it.pdId}/thumbnail`; return `
+                    <div class="g-item" onclick="editItem(${ri})">
+                        <img src="${logo}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23666%22><rect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%222%22/></svg>'">
+                        <div class="g-item-name">${esc(it.name)}</div>
+                        <div class="g-item-actions">
+                            <button class="g-item-btn" onclick="event.stopPropagation();playLeone(${ri})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21"/></svg></button>
+                            <button class="g-item-btn" onclick="event.stopPropagation();delItem(${ri})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button>
+                        </div>
+                    </div>`; }).join('')}</div>`;
+            } else {
+                c.innerHTML = items.map((it, i) => { const ri = playlist.indexOf(it); const logo = it.logo || `https://pixeldrain.com/api/file/${it.pdId}/thumbnail`; return `
+                    <div class="p-item" data-idx="${ri}">
+                        <div class="p-item-top">
+                            ${advMode ? `<input type="checkbox" class="p-item-check" data-i="${ri}" onchange="updSelCount()">` : ''}
+                            <div class="p-item-drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></div>
+                            <img class="p-item-thumb" src="${logo}" onclick="copyText('${logo}')" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23666%22><rect x=%223%22 y=%223%22 width=%2218%22 height=%2218%22 rx=%222%22/></svg>'">
+                            <div class="p-item-info">
+                                <div class="p-item-name">${esc(it.name)}</div>
+                                <div class="p-item-meta">
+                                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>${esc(it.group)}</span>
+                                    ${it.size ? `<span>${fmtSize(it.size)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-item-btns">
+                            <button class="btn btn-icon intent-btn" onclick="playLeone(${ri})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21"/></svg></button>
+                            <button class="btn btn-icon btn-secondary" onclick="editItem(${ri})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                            <button class="btn btn-icon btn-secondary" onclick="window.open('${it.url}','_blank')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+                            <button class="btn btn-icon btn-danger" onclick="delItem(${ri})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg></button>
+                        </div>
+                    </div>`; }).join('');
+                if (typeof Sortable !== 'undefined' && view === 'list') new Sortable(c, { animation: 150, handle: '.p-item-drag', onEnd: e => { const [it] = playlist.splice(e.oldIndex, 1); playlist.splice(e.newIndex, 0, it); save(); } });
+            }
+            updateStats();
+        }
+
+        function renderFilters() {
+            const groups = [...new Set(playlist.map(i => i.group))];
+            document.getElementById('filterChips').innerHTML = `<div class="chip ${filter === 'all' ? 'active' : ''}" onclick="setFilter('all')">All</div>${groups.map(g => `<div class="chip ${filter === g ? 'active' : ''}" onclick="setFilter('${esc(g)}')">${esc(g)}</div>`).join('')}`;
+        }
+
+        function setFilter(f) { filter = f; render(); }
+        function setView(v) { view = v; document.getElementById('listBtn').classList.toggle('active', v === 'list'); document.getElementById('gridBtn').classList.toggle('active', v === 'grid'); render(); }
+        function filterList() { search = document.getElementById('searchInput').value.trim(); render(); }
+        function clearSearch() { document.getElementById('searchInput').value = ''; search = ''; render(); }
+        function updateStats() { document.getElementById('statTotal').textContent = playlist.length; document.getElementById('statGroups').textContent = new Set(playlist.map(i => i.group)).size; document.getElementById('statSize').textContent = fmtSize(playlist.reduce((a, i) => a + (i.size || 0), 0)); }
+
+        // Selection
+        function getSelIdx() { return Array.from(document.querySelectorAll('.p-item-check:checked')).map(c => parseInt(c.dataset.i)); }
+        function updSelCount() { document.getElementById('selCount').textContent = getSelIdx().length; }
+        function selectAll() { document.querySelectorAll('.p-item-check').forEach(c => c.checked = true); updSelCount(); }
+        function deselectAll() { document.querySelectorAll('.p-item-check').forEach(c => c.checked = false); updSelCount(); }
+        function invertSel() { document.querySelectorAll('.p-item-check').forEach(c => c.checked = !c.checked); updSelCount(); }
+        function deleteSel() { const sel = getSelIdx().sort((a, b) => b - a); if (!sel.length || !confirm(`Delete ${sel.length}?`)) return; sel.forEach(i => playlist.splice(i, 1)); save(); render(); }
+        function dupSel() { const sel = getSelIdx(); if (!sel.length) return alert('None selected', 'error'); sel.forEach(i => playlist.push({ ...playlist[i], id: genId() })); save(); render(); toggleFab(); alert('Duplicated', 'success'); }
+
+        // Download original files
+        async function downloadSel() {
+            const sel = getSelIdx();
+            if (!sel.length) return alert('None selected', 'error');
+            const items = sel.map(i => playlist[i]);
+            const images = items.filter(i => i.mime?.startsWith('image'));
+            const others = items.filter(i => !i.mime?.startsWith('image'));
+            
+            if (images.length && images.length === items.length) {
+                // All images - zip
+                openModal('downloadProgressModal');
+                try {
+                    const zip = new JSZip();
+                    for (let i = 0; i < images.length; i++) {
+                        document.getElementById('dlFill').style.width = `${((i + 1) / images.length) * 100}%`;
+                        document.getElementById('dlText').textContent = `Downloading ${i + 1}/${images.length}...`;
+                        const res = await fetch(images[i].url);
+                        const blob = await res.blob();
+                        zip.file(images[i].name || `image_${i + 1}.jpg`, blob);
+                    }
+                    document.getElementById('dlText').textContent = 'Creating ZIP...';
+                    const content = await zip.generateAsync({ type: 'blob' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(content);
+                    a.download = 'images.zip';
+                    a.click();
+                    closeModal('downloadProgressModal');
+                    alert('Downloaded as ZIP', 'success');
+                } catch (e) {
+                    closeModal('downloadProgressModal');
+                    alert('Download failed', 'error');
+                }
+            } else {
+                // Mixed or videos - individual downloads
+                items.forEach((it, i) => {
+                    setTimeout(() => {
+                        const a = document.createElement('a');
+                        a.href = it.url;
+                        a.download = it.name || `file_${i + 1}`;
+                        a.target = '_blank';
+                        a.click();
+                    }, i * 500);
+                });
+                alert('Downloads started', 'success');
+            }
+        }
+
+        // Bulk actions
+        function getIdx(mode, prefix) {
+            if (mode === 'all') return playlist.map((_, i) => i);
+            if (mode === 'sel') return getSelIdx();
+            const s = Math.max(0, (parseInt(document.getElementById(`${prefix}Start`).value) || 1) - 1);
+            const e = Math.min(playlist.length, parseInt(document.getElementById(`${prefix}End`).value) || playlist.length);
+            return Array.from({ length: e - s }, (_, i) => s + i);
+        }
+
+        function applyGroup(m) { const v = document.getElementById('bulkGroup').value.trim(); if (!v) return alert('Enter name', 'error'); getIdx(m, 'grp').forEach(i => playlist[i].group = v); save(); render(); alert('Applied', 'success'); }
+        function applyPrefix(m) { const p = document.getElementById('bulkPrefix').value.trim(); if (!p) return alert('Enter prefix', 'error'); let n = parseInt(document.getElementById('prefixNum').value) || 1; getIdx(m, 'pfx').forEach(i => { playlist[i].name = p + String(n++).padStart(2, '0'); }); save(); render(); alert('Applied', 'success'); }
+        function applyLogo(m) { const v = document.getElementById('bulkLogo').value.trim(); if (!v) return alert('Enter URL', 'error'); getIdx(m, 'logo').forEach(i => playlist[i].logo = v); save(); render(); alert('Applied', 'success'); }
+
+        // Edit
+        function editItem(i) { editIdx = i; const it = playlist[i]; document.getElementById('editName').value = it.name; document.getElementById('editGroup').value = it.group; document.getElementById('editLogo').value = it.logo; document.getElementById('editUrl').value = it.url; openModal('editModal'); }
+        function saveEdit() { if (editIdx < 0) return; playlist[editIdx] = { ...playlist[editIdx], name: document.getElementById('editName').value.trim() || 'Untitled', group: document.getElementById('editGroup').value.trim() || 'Uncategorized', logo: document.getElementById('editLogo').value.trim(), url: document.getElementById('editUrl').value.trim() }; save(); render(); closeModal('editModal'); alert('Saved', 'success'); }
+        function delItem(i) { if (confirm('Delete?')) { playlist.splice(i, 1); save(); render(); } }
+        function playLeone(i) { const it = playlist[i]; window.location.href = `intent:${it.url}#Intent;package=com.genuine.leone;type=video/*;S.title=${encodeURIComponent(it.name)};end`; }
+
+        // M3U
+        function genM3U() { return '#EXTM3U\n\n' + playlist.map((it, i) => `#EXTINF:-1 tvg-id="ch-${i + 1}" tvg-logo="${it.logo}" group-title="${it.group}", ${it.name}\n${it.url}`).join('\n\n'); }
+        function copyM3U() { if (!playlist.length) return alert('Empty', 'error'); navigator.clipboard.writeText(genM3U()).then(() => alert('Copied', 'success')); }
+        function openDlModal() { if (!playlist.length) return alert('Empty', 'error'); document.getElementById('dlName').value = ''; openModal('dlModal'); }
+        function downloadM3U() { const n = document.getElementById('dlName').value.trim().replace(/[^a-z0-9_-]/gi, '_') || 'playlist'; const blob = new Blob([genM3U()], { type: 'audio/x-mpegurl' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${n}.m3u`; a.click(); closeModal('dlModal'); alert('Downloaded', 'success'); }
+
+        // Import M3U
+        function importM3U() { toggleFab(); document.getElementById('m3uFile').click(); }
+        function handleM3U(e) {
+            const f = e.target.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = ev => {
+                const lines = ev.target.result.split('\n');
+                let info = null;
+                lines.forEach(l => {
+                    l = l.trim();
+                    if (l.startsWith('#EXTINF:')) {
+                        const m = l.match(/tvg-logo="([^"]*)".*group-title="([^"]*)".*,\s*(.+)$/);
+                        info = m ? { logo: m[1], group: m[2], name: m[3] } : { logo: '', group: 'Imported', name: l.match(/,\s*(.+)$/)?.[1] || 'Unknown' };
+                    } else if (l && !l.startsWith('#') && info) {
+                        playlist.push({ id: genId(), ...info, url: l, original: l });
+                        info = null;
+                    }
+                });
+                save(); render(); alert('Imported', 'success');
+            };
+            r.readAsText(f);
+            e.target.value = '';
+        }
+
+        // Save/Load
+        function save() { localStorage.setItem('playlist', JSON.stringify(playlist)); }
+        function load() { try { playlist = JSON.parse(localStorage.getItem('playlist') || '[]'); history = JSON.parse(localStorage.getItem('history') || '[]'); saved = JSON.parse(localStorage.getItem('saved') || '{}'); render(); renderSaved(); } catch {} }
+        function openSaveModal() { if (!playlist.length) return alert('Empty', 'error'); document.getElementById('saveName').value = ''; openModal('saveModal'); }
+        function saveList() { const n = document.getElementById('saveName').value.trim() || `Playlist ${Object.keys(saved).length + 1}`; saved[n] = [...playlist]; localStorage.setItem('saved', JSON.stringify(saved)); closeModal('saveModal'); renderSaved(); alert('Saved', 'success'); }
+        function renderSaved() { const k = Object.keys(saved); document.getElementById('savedSection').style.display = k.length ? 'block' : 'none'; document.getElementById('savedList').innerHTML = k.map(n => `<div class="saved-item" onclick="loadSaved('${esc(n)}')">${esc(n)} (${saved[n].length})<button class="saved-del" onclick="event.stopPropagation();delSaved('${esc(n)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>`).join(''); }
+        function loadSaved(n) { playlist = [...saved[n]]; save(); render(); alert('Loaded', 'success'); }
+        function delSaved(n) { delete saved[n]; localStorage.setItem('saved', JSON.stringify(saved)); renderSaved(); }
+        function clearList() { if (!playlist.length || !confirm('Clear all?')) return; playlist = []; save(); render(); }
+        function clearForm() { document.getElementById('urlInput').value = ''; document.getElementById('pdOptions').classList.remove('show'); }
+
+        // Modal
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        window.onclick = e => { if (e.target.classList.contains('modal')) e.target.classList.remove('show'); };
+
+        // Utils
+        function setLoad(on, txt = 'Processing', status = 'Please wait...') { document.getElementById('loadingOverlay').classList.toggle('show', on); document.getElementById('loadingText').textContent = txt; document.getElementById('loadingStatus').textContent = status; }
+        function setLoadStatus(s) { document.getElementById('loadingStatus').textContent = s; }
+        function alert(msg, type) { const el = document.getElementById(type === 'error' ? 'errorAlert' : 'successAlert'); document.getElementById(type === 'error' ? 'errorText' : 'successText').textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
+        function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
+        function copyText(txt) { navigator.clipboard.writeText(txt); toast('Copied!'); }
+        function esc(t) { return (t || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function fmtSize(b) { if (!b) return ''; const u = ['B', 'KB', 'MB', 'GB']; let i = 0; while (b >= 1024 && i < 3) { b /= 1024; i++; } return b.toFixed(1) + u[i]; }
+        function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 4); }
+        function timeAgo(t) { const d = Date.now() - t; const m = Math.floor(d / 60000); if (m < 60) return m + 'm ago'; const h = Math.floor(m / 60); if (h < 24) return h + 'h ago'; return Math.floor(h / 24) + 'd ago'; }
+
+        document.getElementById('urlInput').addEventListener('keypress', e => { if (e.key === 'Enter') fetchLink(); });
+        document.getElementById('tmdbInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') searchTMDB(); });
+    </script>
+</body>
+</html>
