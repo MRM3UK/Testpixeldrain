@@ -1,8 +1,8 @@
 {
   "name": "testpixeldrain",
-  "version": "1.0.0",
-  "description": "M3U Playlist Builder",
-  "main": "index.html",
+  "version": "2.0.0",
+  "description": "Advanced M3U Playlist Builder",
+  "private": true,
   "dependencies": {
     "axios": "^1.6.5",
     "cheerio": "^1.0.0-rc.12"
